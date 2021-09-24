@@ -13,9 +13,11 @@ export default function RandomDot({top,left}){
 const styles = StyleSheet.create({
     dot:{
         backgroundColor:'red',
-        height: pixelCalculatedHW,
-        width: pixelCalculatedHW,
-        position: 'absolute'
+        height: pixelCalculatedHW - 1,
+        width: pixelCalculatedHW - 1,
+        position: 'absolute',
+        borderColor:'black',
+        borderWidth: 1
     },
     setTopLeft:(topPos,leftPos) => {
         return {

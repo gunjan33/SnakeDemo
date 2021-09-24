@@ -10,54 +10,36 @@ import React, { useState, useRef, useEffect } from 'react';
 import {
   SafeAreaView,
   StatusBar,
-  StyleSheet,
   View,
-  Dimensions,
   Text,
   Pressable,
   Image,
-  InteractionManager
 } from 'react-native';
 import RandomDot from './src/Components/RandomDot';
-import SnakeHorizontal from './src/Components/SnakeHorizontal';
-import SnakeVertical from './src/Components/SnakeVertical';
+import Snake from './src/Components/Snake';
+import AppConfig from './src/Constants/AppConfig';
+import { ApplicationStyles } from './src/Styles';
+import { Images, Metrics } from './src/Themes';
 
-const screenDimen = Dimensions.get("window")
-const defaultPadding = 40
-const matrixGrid = 26
-const dotSize = parseInt((screenDimen.width - defaultPadding) / matrixGrid)
-const pixelCalculatedHW = (dotSize * matrixGrid)
-const snakeInitalPos = {
-  x: 3,
-  y: 13,
-  length: 3,
-  direction: 'ltr'
-}
-const defaultSnakeLength = dotSize * snakeInitalPos.length
-const defaultSnakeLeftPos = dotSize * snakeInitalPos.x
-const defaultSnakeTopPos = dotSize * snakeInitalPos.y
-
-const playPause_icon = require('./src/Images/play_pause.png')
-const up_icon = require('./src/Images/arrow-up.png')
-const down_icon = require('./src/Images/arrow-down.png')
-const left_icon = require('./src/Images/arrow-left.png')
-const right_icon = require('./src/Images/arrow-right.png')
-
-
+const defaultSnakeLength = AppConfig.dotSize * AppConfig.snakeInitalPos.length
+const defaultSnakeLeftPos = AppConfig.dotSize * AppConfig.snakeInitalPos.x
+const defaultSnakeTopPos = AppConfig.dotSize * AppConfig.snakeInitalPos.y
+const initialSnakeData = [
+  [(defaultSnakeLeftPos - (AppConfig.dotSize * 2)), defaultSnakeTopPos],
+  [(defaultSnakeLeftPos - AppConfig.dotSize), defaultSnakeTopPos],
+  [defaultSnakeLeftPos, defaultSnakeTopPos]]
 
 const App = () => {
 
   const [currentScore, setCurrentScore] = useState(0)
   const [isPlaying, setIsPlaying] = useState(false)
-  const [dotTop, setDotTop] = useState(0)
-  const [dotLeft, setDotLeft] = useState(0)
-  const [snakePostop, setSnakPosTop] = useState(defaultSnakeTopPos)
-  const [snakePosLeft, setSnakPosLeft] = useState(defaultSnakeLeftPos)
-  const [snakeLength, setSnakLength] = useState(defaultSnakeLength)
-  const [snakeSpeed, setSnakSpeed] = useState(1)
-  const [snakeDirection, setSnakeDirection] = useState(snakeInitalPos.direction)
+  const [snakeSpeed, setSnakeSpeed] = useState(1)
+  const [snakeDirection, setSnakeDirection] = useState(AppConfig.snakeInitalPos.direction)
   const timeoutRef = useRef()
   const intervalRef = useRef()
+  const [snakeData, setSnakeData] = useState(initialSnakeData)
+  const [snakeRandomDotPos, setSnakeRandomDotPos] = useState(AppConfig.snakeInitalPos.dotPos)
+
 
   useEffect(() => {
     return () => {
@@ -65,10 +47,28 @@ const App = () => {
     }
   }, [])
 
+  useEffect(() => {
+    if (isPlaying) {
+      resetDotToNewPos()
+      setTimeout(() => {
+        addSpeedInterval()
+      }, 300);
+    }
+    else{
+      stopGame()
+    }
+  }, [isPlaying])
+
+
+  useEffect(() => {
+    if (isPlaying) {
+      addSpeedInterval()
+    }
+  }, [snakeDirection])
+
   const startGame = () => {
-    resetDotPos()
     addTimeObserver()
-    addSpeedInterval()
+    console.log('snakeData', snakeData);
   }
 
   const addTimeObserver = () => {
@@ -77,7 +77,7 @@ const App = () => {
       clearTimeout(timeoutRef.current)
     }
     timeoutRef.current = setTimeout(() => {
-      resetDotPos()
+      resetDotToNewPos()
     }, 40 * 1000);
   }
 
@@ -88,11 +88,10 @@ const App = () => {
     }
     intervalRef.current = setInterval(() => {
       moveSnake()
-    }, 1000);
+    }, 400 / snakeSpeed);
   }
 
   const clearTimers = () => {
-
     if (timeoutRef) {
       clearTimeout(timeoutRef.current)
     }
@@ -105,21 +104,23 @@ const App = () => {
 
   const stopGame = () => {
     clearTimers()
-
-    if (intervalRef) {
-      clearInterval(intervalRef.current)
-    }
-
-    setDotTop(0)
-    setDotLeft(0)
+    resetDotPos()
   }
 
-  const resetDotPos = () => {
+  const resetDotToNewPos = () => {
 
-    const topPos = getRandomNo()
-    const leftPos = getRandomNo()
-    setDotTop(topPos)
-    setDotLeft(leftPos)
+    const posOne = getRandomNo()
+    const posTwo = getRandomNo()
+
+    setSnakeRandomDotPos([posOne,posTwo])
+  }
+
+
+  const resetDotPos = () => {
+    setSnakeData([...initialSnakeData])
+    setSnakeRandomDotPos([0,0])
+    setSnakeDirection('ltr')
+    setSnakeSpeed(1)
   }
 
   const onPressStartStop = () => {
@@ -132,214 +133,144 @@ const App = () => {
   }
 
   const getRandomNo = () => {
-    const calculatedPos = parseInt((Math.random() * matrixGrid)) * dotSize
-    if (calculatedPos > (pixelCalculatedHW - dotSize)) {
-      return pixelCalculatedHW - dotSize
+    const calculatedPos = parseInt((Math.random() * AppConfig.matrixGrid)) * AppConfig.dotSize
+    if (calculatedPos > (AppConfig.pixelCalculatedHW - AppConfig.dotSize)) {
+      return AppConfig.pixelCalculatedHW - AppConfig.dotSize
     }
     return calculatedPos
   }
 
   const onPressNavButton = (type) => {
-    switch (type) {
-      case 'left':
-        clearTimers()
-        setSnakeDirection('rtl')
-        break;
-      case 'right':
-        clearTimers()
-        setSnakeDirection('ltr')
-        break;
-      case 'up':
-        clearTimers()
-        setSnakeDirection('btt')
-        break;
-      case 'down':
-        clearTimers()
-        setSnakeDirection('ttp')
-        break;
-      default:
-        break;
+    if ((type == 'ltr' || type == 'rtl') && snakeDirection != 'ltr' && snakeDirection != 'rtl') {
+      setSnakeDirection(type) 
     }
-    addTimeObserver()
-    addSpeedInterval()
-    console.log('onPressNavButton ->', snakeDirection);
+    if ((type == 'ttb' || type == 'btt') && snakeDirection != 'ttb' && snakeDirection != 'btt') {
+      setSnakeDirection(type) 
+    }
   }
 
   function moveSnake() {
-    switch (snakeDirection) {
-      case 'ltr':
-          setSnakPosLeft((snakePosLeft) => {
-            if ((snakePosLeft) + snakeLength <= pixelCalculatedHW) {
-              return snakePosLeft + (dotSize * snakeSpeed)
-            }
-            else{
-              return 0
-            }
-          })
-        break;
-      case 'rtl':
-          setSnakPosLeft((snakePosLeft) => {
-            if ((snakePosLeft) - dotSize >= dotSize) {
-              return snakePosLeft - (dotSize * snakeSpeed)
-            }
-            else{
-              return pixelCalculatedHW - snakeLength
-            }
-          })
-        break;
-      case 'ttb':
-        setSnakPosTop((snakePostop) => {
-          if ((snakePostop) + snakeLength <= pixelCalculatedHW) {
-            return snakePostop + (dotSize * snakeSpeed)
-          }
-          else{
-            return 0
-          }
-        })        
-        break;
-      case 'btt':
-        setSnakPosTop((snakePostop) => {
-          if ((snakePostop) - dotSize >= dotSize) {
-            return snakePostop + (dotSize * snakeSpeed)
-          }
-          else{
-            return pixelCalculatedHW - snakeLength
-          }
-        })        
-        break;
-      default:
-        break;
-    }
+    setSnakeData((snakeData) => {
+      let currentSnakePosData = [...snakeData]
+      let initialPos = currentSnakePosData[currentSnakePosData.length - 1]
+      let xyMaxPos = parseInt(AppConfig.dotSize * (AppConfig.matrixGrid))
+      let xyMinPos = 0
+      // checkForHit(currentSnakePosData)
+      
+      if (parseInt(initialPos[0]) >= xyMaxPos && snakeDirection === 'ltr') {  
+        initialPos[0] = xyMinPos
+      }
+      else if (parseInt(initialPos[1]) >= (xyMaxPos - AppConfig.dotSize) && snakeDirection === 'ttb') {  
+        initialPos[1] = xyMinPos
+      }
+      else if (parseInt(initialPos[0]) <= xyMinPos && snakeDirection === 'rtl') {  
+        initialPos[0] = xyMaxPos
+      }
+      else if (parseInt(initialPos[1]) <= xyMinPos && snakeDirection === 'btt') {  
+        initialPos[1] = xyMaxPos - AppConfig.dotSize
+      }
+      else {
+        switch (snakeDirection) {
+          case 'ltr':
+            initialPos = [(initialPos[0] + AppConfig.dotSize), initialPos[1]]
+            break;
+          case 'rtl':
+            initialPos = [(initialPos[0] - AppConfig.dotSize), initialPos[1]]
+            break;
+          case 'btt':
+            initialPos = [initialPos[0], (initialPos[1] - AppConfig.dotSize)]
+            break;
+          case 'ttb':
+            initialPos = [initialPos[0], (initialPos[1] + AppConfig.dotSize)]
+            break;
+          default:
+            break;
+        }
+      }
+      currentSnakePosData.push(initialPos)
+
+
+      if (initialPos[0] == snakeRandomDotPos[0] && initialPos[1] == snakeRandomDotPos[1]) {        
+        resetDotToNewPos()
+        setSnakeSpeed(snakeSpeed => parseInt(currentScore/5))
+        setCurrentScore(currentScore => currentScore + 1)
+      }
+      else{
+        currentSnakePosData.shift()
+      }
+      // console.log('currentSnakePosData',currentSnakePosData);
+      return currentSnakePosData
+    })
   }
 
-  const splitSnakeForDirectionChange = () => {
-
+  checkForHit = (data) => {
+    let currentSnakePosData = [...data]
+    let initialPos = currentSnakePosData[currentSnakePosData.length - 1]
+    currentSnakePosData.pop()
+    currentSnakePosData.forEach((item) => {
+      if (initialPos[0] == item[0] && initialPos[1] == item[1]) {         
+        const score = currentScore
+        alert(`Your score is ${score}`)
+        stopGame()    
+      }
+    })
   }
 
+
+  renderSnakeNavigationView = () => {
+    return (
+      <View style={ApplicationStyles.navButtonsContainer}>
+        <View style={[ApplicationStyles.navButtonContainer, ApplicationStyles.upDownButtonContainer]}>
+          <Pressable style={ApplicationStyles.navButton} onPress={() => onPressNavButton('btt')}>
+            <Image source={Images.up_icon} style={ApplicationStyles.startStopIcon} />
+          </Pressable>
+        </View>
+        <View style={[ApplicationStyles.navButtonContainer, ApplicationStyles.leftRightButtonContainer]}>
+          <View style={ApplicationStyles.leftSubContainer}>
+            <Pressable style={ApplicationStyles.navButton} onPress={() => onPressNavButton('rtl')}>
+              <Image source={Images.left_icon} style={ApplicationStyles.startStopIcon} />
+            </Pressable>
+          </View>
+          <View style={ApplicationStyles.leftSubContainer}>
+            <Pressable style={ApplicationStyles.navButton} onPress={() => onPressNavButton('ltr')}>
+              <Image source={Images.right_icon} style={ApplicationStyles.startStopIcon} />
+            </Pressable>
+          </View>
+        </View>
+        <View style={[ApplicationStyles.navButtonContainer, ApplicationStyles.upDownButtonContainer]}>
+          <Pressable style={ApplicationStyles.navButton} onPress={() => onPressNavButton('ttb')}>
+            <Image source={Images.down_icon} style={ApplicationStyles.startStopIcon} />
+          </Pressable>
+        </View>
+      </View>
+    )
+  }
 
   return (
-    <SafeAreaView style={styles.SafeAreaContainer}>
+    <SafeAreaView style={ApplicationStyles.SafeAreaContainer}>
       <StatusBar barStyle={'dark-content'} />
-      <View style={styles.container}>
-        <View style={styles.matrixGridContainer}>
-          <View style={styles.matrixGrid}>
-            <RandomDot top={dotTop} left={dotLeft} />
-            <SnakeHorizontal top={snakePostop} left={snakePosLeft} length={snakeLength} />
-            {/* <SnakeVertical top={snakePostop} left={snakePosLeft} length={snakeLength} /> */}
+      <View style={ApplicationStyles.container}>
+        <View style={ApplicationStyles.matrixGridContainer}>
+          <View style={ApplicationStyles.matrixGrid(AppConfig.pixelCalculatedHW)}>
+            <RandomDot left={snakeRandomDotPos[0]} top={snakeRandomDotPos[1]} />
+            <Snake snakePosData={snakeData} />
           </View>
-          <View style={styles.startStopContainer}>
+          <View style={ApplicationStyles.startStopContainer}>
             <Text>Start/Stop</Text>
-            <View style={[styles.flexDirRow]}>
-              <Pressable style={styles.startStopButton} onPress={onPressStartStop}>
-                <Image source={playPause_icon} style={styles.startStopIcon} />
+            <View style={[ApplicationStyles.flexDirRow]}>
+              <Pressable style={ApplicationStyles.startStopButton} onPress={onPressStartStop}>
+                <Image source={Images.playPause_icon} style={ApplicationStyles.startStopIcon} />
               </Pressable>
-              <View style={styles.scoreContainer}>
+              <View style={ApplicationStyles.scoreContainer}>
                 <Text>Score:{currentScore}</Text>
               </View>
             </View>
           </View>
         </View>
-        <View style={styles.navButtonsContainer}>
-          <View style={[styles.navButtonContainer, styles.upDownButtonContainer]}>
-            <Pressable style={styles.navButton} onPress={() => onPressNavButton('up')}>
-              <Image source={up_icon} style={styles.startStopIcon} />
-            </Pressable>
-          </View>
-          <View style={[styles.navButtonContainer, styles.leftRightButtonContainer]}>
-            <View style={styles.leftSubContainer}>
-              <Pressable style={styles.navButton} onPress={() => onPressNavButton('left')}>
-                <Image source={left_icon} style={styles.startStopIcon} />
-              </Pressable>
-            </View>
-            <View style={styles.leftSubContainer}>
-              <Pressable style={styles.navButton} onPress={() => onPressNavButton('right')}>
-                <Image source={right_icon} style={styles.startStopIcon} />
-              </Pressable>
-            </View>
-          </View>
-          <View style={[styles.navButtonContainer, styles.upDownButtonContainer]}>
-            <Pressable style={styles.navButton} onPress={() => onPressNavButton('down')}>
-              <Image source={down_icon} style={styles.startStopIcon} />
-            </Pressable>
-          </View>
-        </View>
+        {renderSnakeNavigationView()}
       </View>
     </SafeAreaView>
   );
 };
-
-const styles = StyleSheet.create({
-  SafeAreaContainer: {
-    flex: 1
-  },
-  container: {
-    marginTop: 32,
-    flex: 1,
-  },
-  matrixGridContainer: {
-    height: screenDimen.height * 0.6
-  },
-  matrixGrid: {
-    borderColor: 'black',
-    borderWidth: 1,
-    margin: 20,
-    height: pixelCalculatedHW
-  },
-  navButtonsContainer: {
-    backgroundColor: 'gray',
-    height: screenDimen.height * 0.4
-  },
-  startStopContainer: {
-    padding: 20
-  },
-  flexDirRow: {
-    flexDirection: 'row',
-  },
-  scoreContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    flex: 1
-  },
-  startStopButton: {
-    backgroundColor: 'blue',
-    height: 50,
-    width: 50,
-    borderRadius: 25,
-    borderColor: 'red',
-    padding: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2
-  },
-  startStopIcon: {
-    height: 25,
-    width: 25,
-    resizeMode: 'center',
-    tintColor: 'red'
-  },
-  navButtonContainer: {
-    height: (screenDimen.height * 0.3) / 3,
-  },
-  upDownButtonContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  leftRightButtonContainer: {
-    flexDirection: 'row',
-  },
-  navButton: {
-    backgroundColor: 'blue',
-    height: 40,
-    width: 40,
-    padding: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  leftSubContainer: {
-    width: "50%",
-    alignItems: 'center',
-    justifyContent: 'center',
-  }
-});
 
 export default App;

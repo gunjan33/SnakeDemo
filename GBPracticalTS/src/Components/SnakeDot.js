@@ -5,23 +5,25 @@ const screenDimen = Dimensions.get("window")
 const pixelCalculatedHW = parseInt((screenDimen.width - 40) / 26)
 const defaultLength = pixelCalculatedHW * 3
 
-export default function SnakeHorizontal({ top, left, length, direction }) {
+export default function SnakeDot({ top, left }) {
     return (
-        <View style={[styles.snake, styles.setTopLeft(top, left, length)]} />
+        <View style={[styles.snake, styles.setTopLeft(top, left)]} />
     )
 }
 
 const styles = StyleSheet.create({
     snake: {
         backgroundColor: 'black',
-        position: 'absolute'
+        position: 'absolute',
+        borderColor:'white',
+        borderWidth:1,
+        width: pixelCalculatedHW,
+        height: pixelCalculatedHW
     },
-    setTopLeft: (topPos, leftPos, length) => {
+    setTopLeft: (topPos, leftPos) => {
         return {
             top: topPos,
             left: leftPos,
-            width: length,
-            height: pixelCalculatedHW,
         }
     }
 })
